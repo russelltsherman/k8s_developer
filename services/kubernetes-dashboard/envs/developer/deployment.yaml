@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-dashboard
+  labels:
+    app.kubernetes.io/name: kubernetes-dashboard
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubernetes-dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubernetes-dashboard
+    spec:
+      containers:
+        - name: kubernetes-dashboard
+          args:
+            - --enable-skip-login
+            - --enable-insecure-login
+            - --disable-settings-authorizer
+            - --metrics-provider=none
+            - --namespace=kubernetes-dashboard
+            - --system-banner="Welcome to Kubernetes MlOps"
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              scheme: HTTP
+              path: /
+              port: 9090

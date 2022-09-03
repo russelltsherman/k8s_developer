@@ -1,0 +1,5 @@
+# ignore .base-manifest.yaml
+**/base/.base-manifest.yaml
+**/base/*-values.yaml
+**/.chart
+**/.templates

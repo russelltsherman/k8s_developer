@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hub
+  labels:
+    component: hub
+    app: jupyterhub
+    release: jupyterhub
+spec:
+  selector:
+    matchLabels:
+      component: hub
+      app: jupyterhub
+      release: jupyterhub
+  template:
+    metadata:
+      labels:
+        component: hub
+        app: jupyterhub
+        release: jupyterhub
+    spec:
+      containers:
+        - name: hub
+          env:
+            - name: OAUTH2_TLS_VERIFY
+              value: "0"
+            - name: OAUTH2_AUTHORIZE_URL
+              value: http://keycloak.lo/realms/master/protocol/openid-connect/auth
+            - name: OAUTH2_TOKEN_URL
+              value: http://keycloak.lo/realms/master/protocol/openid-connect/token

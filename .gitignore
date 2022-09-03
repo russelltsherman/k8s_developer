@@ -1,0 +1,17 @@
+# ignore caches
+.direnv
+.keys
+.manifests
+.services
+
+# ignore build harness
+*build-harness
+
+# ignore brewfile lock
+Brewfile.lock*
+
+# ignore env vars
+.vars
+
+# ignore src directory
+src

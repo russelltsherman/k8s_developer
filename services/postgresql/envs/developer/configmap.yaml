@@ -1,0 +1,11 @@
+apiVersion: v1
+data:
+  seed.sql: |
+    create database keycloak;
+    create user keycloak with encrypted password 'p@s5w0rd';
+    grant all privileges on database keycloak to keycloak;
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: postgresql-init
+  namespace: postgresql

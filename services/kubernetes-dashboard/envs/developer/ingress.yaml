@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: opsbots
+  name: kubernetes-dashboard
+  labels:
+    app.kubernetes.io/name: kubernetes-dashboard
+spec:
+  rules:
+    - host: "kubernetes-dashboard.lo"
+      http:
+        paths:
+          - backend:
+              service:
+                name: kubernetes-dashboard
+                port:
+                  number: 8090
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - "kubernetes-dashboard.lo"
+      secretName: kubernetes-dashboard-tls

@@ -1,0 +1,60 @@
+hub:
+  config:
+    Authenticator:
+      auto_login: true
+      enable_auth_state: true
+    GenericOAuthenticator:
+      client_id: jhub
+      client_secret: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      oauth_callback_url: https://jupyterhub.lo/hub/oauth_callback
+      authorize_url: https://keycloak.lo/realms/master/protocol/openid-connect/auth
+      token_url: https://keycloak.lo/realms/master/protocol/openid-connect/token
+      userdata_url: https://keycloak.lo/realms/master/protocol/openid-connect/userinfo
+      login_service: keycloak
+      username_key: preferred_username
+      userdata_params:
+        state: state
+    JupyterHub:
+      authenticator_class: generic-oauth
+
+singleuser:
+  image:
+    name: finbotsdev/datascience-notebook
+    tag: 466ee95
+  extraEnv:
+    MINIO_ACCESS_KEY:
+      name: MINIO_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: minio
+          key: accesskey
+    MINIO_SECRET_KEY:
+      name: MINIO_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: minio
+          key: secretkey
+    OANDA_ACCOUNT_ID:
+      name: OANDA_ACCOUNT_ID
+      valueFrom:
+        secretKeyRef:
+          name: oanda
+          key: account-id
+    OANDA_API_KEY:
+      name: OANDA_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: oanda
+          key: api-key
+    OANDA_API_URL:
+      name: OANDA_API_URL
+      valueFrom:
+        secretKeyRef:
+          name: oanda
+          key: api-url
+    POSTGRES_PASSWORD:
+      name: POSTGRES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: postgresql
+          key: postgres-password

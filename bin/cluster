@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+
+ACTION=${1:-"create"}
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+# set max cores to count of available cores
+MAX_CORES=$(sysctl -n hw.ncpu)
+# set max ram to 75% of available memory
+MAX_RAM=$(( $(sysctl -n hw.memsize) / $((1024**3)) / 4 * 3 ))
+PROFILE=developer
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+
+K8S_CTX=$PROFILE
+
+# tell dns resolver to use minikube as nameserver for any .lo domains
+function dnsresolver() {
+  sudo rm /etc/resolver/minikube-$PROFILE
+
+    cat << EOF | sudo tee -a /etc/resolver/minikube-$PROFILE
+domain lo
+nameserver $(minikube ip --profile=$PROFILE)
+search_order 1
+timeout 5
+EOF
+}
+
+# extend minikube dns config to forward dns requests for .lo domain to minikube ip address
+function dnsconfig() {
+    cat <<EOF | kubectl apply --filename -
+---
+apiVersion: v1
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        hosts {
+           192.168.64.1 host.minikube.internal
+           fallthrough
+        }
+        forward . /etc/resolv.conf {
+           max_concurrent 1000
+        }
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+    lo:53 {
+        errors
+        cache 30
+        forward . $(minikube ip --profile=$PROFILE)
+    }
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+EOF
+}
+
+case $ACTION in
+  context)
+    minikube update-context --profile="$PROFILE"
+    ;;
+  create)
+
+    minikube start \
+      --cpus="$MAX_CORES" \
+      --disk-size='100g' \
+      --driver='hyperkit' \
+      --kubernetes-version='1.22.12' \
+      --memory="${MAX_RAM}g" \
+      --mount true --mount-string='/Users:/host' \
+      --nodes=1 \
+      --profile="$PROFILE"
+
+    # running multiple nodes can have issues with pv permissions
+    # https://github.com/kubernetes/minikube/issues/12360
+
+    minikube addons enable ingress --profile="$PROFILE"
+    minikube addons enable ingress-dns --profile="$PROFILE"
+
+    dnsresolver
+
+    # reload resolver config
+    sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.mDNSResponder.plist
+    sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.mDNSResponder.plist
+
+    dnsconfig
+
+    # Create Private Certificate Signing Authority
+    "$HOME"/bin/ca
+
+    echo "#########################################"
+    echo "Install sealed secrets controller"
+    echo "#########################################"
+    make -C services/sealed-secrets-controller deploy
+    # wait until sealed secrets controller pod is ready
+    kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=sealed-secrets -n kube-system
+    sleep 5
+    # fetch public cert from cluster
+    kubeseal --fetch-cert > "${KEYTDIR}/${K8S_CTX}.pem"
+
+    echo "#########################################"
+    echo "seal secrets"
+    echo "#########################################"
+    make -C "${DIR}"/../services secrets
+
+    echo "#########################################"
+    echo "Install certificate manager"
+    echo "#########################################"
+    make -C services/cert-manager deploy
+
+    ca configmap pgadmin
+    ca configmap monitoring
+    ca configmap argocd
+
+    echo "#########################################"
+    echo "Install argo-cd"
+    echo "#########################################"
+    make -C services/argo-cd deploy
+
+    # echo "#########################################"
+    # echo "Install Argo Workflows"
+    # echo "#########################################"
+    # make -C services/argo-workflows deploy
+
+    # argo workflows fails to install due to role conflict in manifest
+    # kind: CustomResourceDefinition
+    # name: servicemonitors.monitoring.coreos.com
+
+    # echo "#########################################"
+    # echo "Install Loki"
+    # echo "#########################################"
+    # make -C services/loki deploy
+
+    # loki fails to install due to duplicated CRD defined in manifest
+    # kind: CustomResourceDefinition
+    # name: servicemonitors.monitoring.coreos.com
+
+    # echo "#########################################"
+    # echo "Install Jupyterhub"
+    # echo "#########################################"
+    # ca configmap jupyterhub
+    # make -C services/jupyterhub deploy
+
+    # echo "#########################################"
+    # echo "Install Minio"
+    # echo "#########################################"
+    # ca configmap minio
+    # make -C services/minio deploy
+
+    # echo "#########################################"
+    # echo "Install MLFlow"
+    # echo "#########################################"
+    # ca configmap mlflow
+    # make -C services/mlflow deploy
+
+    # echo "#########################################"
+    # echo "Install Timescale Database"
+    # echo "#########################################"
+    # make -C services/timescaledb deploy
+
+    ;;
+  dnstest)
+    # example deployment for hello john and hallo jane apps
+    kubectl apply --filename=manifests/dns-resolver-test.yaml
+
+    # test ns lookups directly to minikube
+    nslookup hello-john.lo $(minikube ip --profile=$PROFILE)
+    nslookup hello-jane.lo $(minikube ip --profile=$PROFILE)
+
+    # test ns lookups from host machine using curl
+    curl http://kubernetes-dashboard.lo
+    curl http://hello-jane.lo
+    ;;
+  dashboard)
+    echo "use this token to access the dashboard"
+    kubectl -n kubernetes-dashboard get secret $(kubectl -n kubernetes-dashboard get sa/dashboard-admin -o jsonpath="{.secrets[0].name}") -o go-template="{{.data.token | base64decode}}"; echo
+
+    # for kubectl client/server 1.24 and beyond
+    # kubectl -n kubernetes-dashboard create token dashboard-admin
+    open https://kubernetes-dashboard.lo/
+    ;;
+  delete|destroy|ip|pause|ssh|start|stop|tunnel|unpause)
+    minikube "$ACTION" --profile="$PROFILE"
+    ;;
+  *)
+    echo "unrecognied action"
+    exit 0
+    ;;
+esac
+
+# ## Install simple nginx app
+# kubectl apply --filename=./manifests/nginx.yaml
+
+# ## install operator lifecycle manager
+# kubectl apply --filename=manifests/operator-lifecycle-manager/v0.20.0/crds.yaml"
+# kubectl apply --filename=manifests/operator-lifecycle-manager/v0.20.0/olm.yaml"
+
+# ## Register RedHat Community Operators Source repo
+# kubectl apply --filename=manifests/open-data-hub/catalog-source.yaml
+# kubectl apply --filename=manifests/open-data-hub/odh-subscription.yaml
+
+# ## create ml-workshop
+# kubectl create ns ml-workshop
+# kubectl apply --filename=manifests/ml-platform/ml-platform.yaml --namespace ml-workshop

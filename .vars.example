@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+ARCH=$(uname | awk '{print tolower($0)}')
+export ARCH
+
+# a default initial password
+export DEFAULT_PASSWORD=XXXXXXXXXXXXXXXXX
+
+# a github personal access token with repo permission
+export GITHUB_TOKEN=XXXXXXXXXXXXXXXXXX
+# url for a github user or organization
+export GITHUB_REPO_URL=XXXXXXXXXXXXXXXXXX
+# username for a github user or organization
+export GITHUB_USERNAME=XXXXXXXXXXXXXXXXXX
+
+# a directory to cache cluster public key certificates
+export KEYTDIR=$DIR/.keys
+
+# add ./build-harness/vendor to path
+export PATH=./bin:./build-harness/bin:./build-harness/vendor:$PATH
+
+# postgresql superuser password
+export POSTGRES_PASSWORD=XXXXXXXXXXXXXXXXXX
+
+# the path specified by REPO_PATH is there we will clone the
+# source repositories specified in .repo-manifest
+export REPO_PATH=./src

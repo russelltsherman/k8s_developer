@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: opsbots
+  labels:
+    component: ingress
+    app: jupyterhub
+    release: jupyterhub
+    chart: jupyterhub-1.2.0
+    heritage: Helm
+  name: jupyterhub
+spec:
+  rules:
+    - host: "jupyterhub.lo"
+      http:
+        paths:
+          - backend:
+              serviceName: proxy-public
+              servicePort: 80
+            path: /
+  tls:
+    - hosts:
+        - jupyterhub.lo
+      secretName: jupyterhub-local-tls

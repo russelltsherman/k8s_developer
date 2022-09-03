@@ -1,0 +1,5 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ingress-nginx
+resources:
+  - nginx-ingress-0.14.0.yaml

@@ -1,0 +1,10 @@
+auth:
+  adminUser: root
+  createAdminUser: true
+  existingSecret: keycloak
+
+externalDatabase:
+  host: postgresql.postgresql.svc.cluster.local
+
+postgresql:
+  enabled: false

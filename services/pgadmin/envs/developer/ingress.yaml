@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: opsbots
+  name: pgadmin4
+  labels:
+    app.kubernetes.io/name: pgadmin4
+spec:
+  rules:
+    - host: "pgadmin.lo"
+      http:
+        paths:
+          - backend:
+              service:
+                name: pgadmin4
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - "pgadmin.lo"
+      secretName: pgadmin-local-tls

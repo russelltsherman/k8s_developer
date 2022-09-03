@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: hook-image-puller
+  labels:
+    component: hook-image-puller
+    app: jupyterhub
+    release: jupyterhub
+spec:
+  selector:
+    matchLabels:
+      component: hook-image-puller
+      app: jupyterhub
+      release: jupyterhub
+  template:
+    metadata:
+      labels:
+        component: hook-image-puller
+        app: jupyterhub
+        release: jupyterhub
+    spec:
+      initContainers:
+        - name: image-pull-singleuser
+          image: finbotsdev/datascience-notebook:466ee95
+          command:
+            - /bin/sh
+            - -c
+            - echo "Pulling complete"
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsGroup: 65534
+            runAsUser: 65534
